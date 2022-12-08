@@ -53,14 +53,24 @@ class HashTable:
         for key, val in ht:
             print(f'{key}: {val}')
     """
+    _INITIAL_SIZE = 10
+
     def __init__(self):
-        pass
+        self._table = [None for i in range(self._INITIAL_SIZE)]
+        self._size = self._INITIAL_SIZE
 
     def __iter__(self):
         pass
 
+    def _get_table_index(self, node: 'HashNode'):
+        return abs(node.hash_code) % self._size
+
     def set(self, key: Hashable, value: Any):
-        pass
+        """
+        Sets the `key` in the table with the assigned `value`.
+        """
+        node = HashNode(key, value)
+        idx = self._get_table_index(node)
 
     def get(self, key: Hashable, default_value: Any = None) -> Any:
         pass
@@ -119,8 +129,37 @@ class HashNodeTests(unittest.TestCase):
 
 
 class HashTableTests(unittest.TestCase):
+    class FixedHash:
+        def __init__(self, hash_code):
+            self.hash_code = hash_code
+
+        def __hash__(self):
+            return self.hash_code
+
     def setUp(self):
         self.fake = Faker()
+
+    def test_init(self):
+        ht = HashTable()
+        self.assertEqual(HashTable._INITIAL_SIZE, len(ht._table))
+        self.assertEqual(HashTable._INITIAL_SIZE, ht._size)
+
+    def test_get_table_index__positive_hash(self):
+        ht = HashTable()
+        node = HashNode(self.FixedHash(13), "node")
+        self.assertEqual(
+            13 % HashTable._INITIAL_SIZE,
+            ht._get_table_index(node),
+        )
+
+    def test_get_table_index__negative_hash(self):
+        ht = HashTable()
+        node = HashNode(self.FixedHash(-22), "node")
+        self.assertEqual(
+            22 % HashTable._INITIAL_SIZE,
+            ht._get_table_index(node),
+        )
+
 
     def test_set_and_get__int_key(self):
         ht = HashTable()
