@@ -7,9 +7,30 @@ the form of a dict, but it's interesting to see what I can learn from this.
 import random
 import unittest
 from faker import Faker
-from typing import Any
+from typing import Any, Hashable
 
 __all__ = ['HashTable']
+
+
+class HashNode:
+    """
+    Linked list structure for the Hash Table.
+    """
+    def __init__(self, key: Hashable, value: Any):
+        self.key = key
+        self.value = value
+        self.hash_code = hash(key)
+        self.next_node = None
+
+    def __eq__(self, other: Any):
+        # We rely on the key here, rather than the hash,
+        # because two completely different things might share the same hash.
+        # Presumably if the keys are equal,
+        # they would also share the same hash.
+        return (
+            isinstance(other, HashNode) and
+            self.key == other.key
+        )
 
 
 class HashTable:
@@ -32,29 +53,64 @@ class HashTable:
     def __iter__(self):
         pass
 
-    # TODO: we'll extend keys to be other things at a later time;
-    # let's get integers working first
-    def set(self, key: int, value: Any):
+    def set(self, key: Hashable, value: Any):
         pass
 
-    def get(self, key: int, default_value: Any = None) -> Any:
+    def get(self, key: Hashable, default_value: Any = None) -> Any:
         pass
+
+    # TODO: function for removal
+
+
+def _random_value(fake):
+    methods = [method for method in dir(fake)
+               if not method.startswith('_')]
+    func = getattr(fake, random.choice(methods))
+    return func()
+
+
+class HashNodeTests(unittest.TestCase):
+    class AlwaysEqualHash:
+        def __init__(self, value):
+            self.value = value
+
+        def __eq__(self, other):
+            return self.value is other.value
+
+        def __hash__(self):
+            return 1
+
+    def setUp(self):
+        self.fake = Faker()
+
+    def test_init(self):
+        key = self.fake.word()
+        value = _random_value(self.fake)
+        node = HashNode(key, value)
+
+        self.assertEqual(key, node.key)
+        self.assertEqual(value, node.value)
+        self.assertEqual(hash(key), node.hash_code)
+
+    def test_eq__false(self):
+        node1 = HashNode(self.AlwaysEqualHash(3), "foo")
+        node2 = HashNode(self.AlwaysEqualHash(4), "bar")
+        self.assertNotEqual(node1, node2)
+
+    def test_eq__true(self):
+        node1 = HashNode(self.AlwaysEqualHash(3), "foo")
+        node2 = HashNode(self.AlwaysEqualHash(3), "bar")
+        self.assertEqual(node1, node2)
 
 
 class HashTableTests(unittest.TestCase):
     def setUp(self):
         self.fake = Faker()
 
-    def _random_value(self):
-        methods = [method for method in dir(self.fake)
-                   if not method.startswith('_')]
-        func = getattr(self.fake, random.choice(methods))
-        return func()
-
     def test_set_and_get__int_key(self):
         ht = HashTable()
         key = self.fake.random_int()
-        value = self._random_value()
+        value = _random_value(self.fake)
         ht.set(key, value)
         self.assertEqual(value, ht.get(key))
 
