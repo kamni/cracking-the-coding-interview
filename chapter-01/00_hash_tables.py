@@ -32,6 +32,12 @@ class HashNode:
             self.key == other.key
         )
 
+    def add(self, next_node: 'HashNode'):
+        if self.next_node:
+            self.next_node.add(next_node)
+        else:
+            self.next_node = next_node
+
 
 class HashTable:
     """
@@ -101,6 +107,15 @@ class HashNodeTests(unittest.TestCase):
         node1 = HashNode(self.AlwaysEqualHash(3), "foo")
         node2 = HashNode(self.AlwaysEqualHash(3), "bar")
         self.assertEqual(node1, node2)
+
+    def test_add(self):
+        node1 = HashNode("foo", "bar")
+        node2 = HashNode("bar", "baz")
+        node3 = HashNode("baz", "buz")
+        node1.add(node2)
+        node1.add(node3)
+        self.assertEqual(node1.next_node, node2)
+        self.assertEqual(node2.next_node, node3)
 
 
 class HashTableTests(unittest.TestCase):
