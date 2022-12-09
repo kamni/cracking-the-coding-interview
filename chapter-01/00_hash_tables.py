@@ -60,10 +60,14 @@ class HashNode:
         )
 
     def add(self, next_node: 'HashNode'):
-        if self.next_node:
-            self.next_node.add(next_node)
+        if self == next_node:
+            self.value = next_node.value
+            return 0
+        elif self.next_node:
+            return self.next_node.add(next_node)
         else:
             self.next_node = next_node
+            return 1
 
 
 class HashTable:
@@ -99,8 +103,9 @@ class HashTable:
         idx = self._get_table_index(node)
         if self._table[idx] is None:
             self._table[idx] = node
+            return 1
         else:
-            self._table[idx].add(node)
+            return self._table[idx].add(node)
 
     def _get_table_index(self, node: 'HashNode'):
         return abs(node.hash_code) % self._size
@@ -112,22 +117,18 @@ class HashTable:
         )
 
     def _rebuild_table(self):
-        new_ht = HashTable(self.size * 2)
+        new_ht = HashTable(self._size * 2)
         for node in self:
             new_ht._add(node)
         self._table = new_ht._table
+        self._size = new_ht._size
 
     def set(self, key: Hashable, value: Any):
         """
         Sets the `key` in the table with the assigned `value`.
         """
         node = HashNode(key, value)
-
-        # We don't want to increment the number of nodes,
-        # if this node already exists
-        if not self.get(key):
-            self._number_of_nodes += 1
-        self._add(node)
+        self._number_of_nodes += self._add(node)
 
         # Check to see if we might need to allocate more space to the table,
         # to keep performance close to O(1)
@@ -137,8 +138,9 @@ class HashTable:
     def get(self, key: Hashable, default_value: Any = None) -> Any:
         pass
 
-    # TODO: function for removal
-    # Don't forget to decrement self._number_of_nodes
+    def delete(self, key: Hashable):
+        # Don't forget to decrement self._number_of_nodes
+        pass
 
 
 def _random_value(fake):
@@ -172,7 +174,15 @@ class HashNodeTests(unittest.TestCase):
         self.assertEqual(hash(key), node.hash_code)
 
     def test_iter(self):
-        node1 = None
+        node1 = HashNode(1, 1)
+        node2 = HashNode(2, 2)
+        node3 = HashNode(3, 3)
+        node1.add(node2)
+        node2.add(node3)
+        self.assertEqual(
+            [node1, node2, node3],
+            [node for node in node1],
+        )
 
     def test_iter__no_other_nodes(self):
         node1 = HashNode(1, 1)
@@ -192,16 +202,34 @@ class HashNodeTests(unittest.TestCase):
         node1 = HashNode("foo", "bar")
         node2 = HashNode("bar", "baz")
         node3 = HashNode("baz", "buz")
-        node1.add(node2)
-        node1.add(node3)
+
+        self.assertEqual(1, node1.add(node2))
+        self.assertEqual(1, node1.add(node3))
         self.assertEqual(node1.next_node, node2)
         self.assertEqual(node2.next_node, node3)
+
+    def test_add__duplicates(self):
+        node1 = HashNode("foo", "bar")
+        node2 = HashNode("foo", "baz")
+
+        self.assertEqual(0, node1.add(node2))
+        self.assertEqual("baz", node1.value)
+
+        node3 = HashNode("bar", "baz")
+        node4 = HashNode("bar", "buz")
+
+        self.assertEqual(1, node1.add(node3))
+        self.assertEqual(0, node1.add(node4))
+        self.assertEqual("buz", node3.value)
 
 
 class HashTableTests(unittest.TestCase):
     class FixedHash:
         def __init__(self, hash_code):
             self.hash_code = hash_code
+
+        def __eq__(self, other: 'FixedHash'):
+            return self.hash_code == other.hash_code
 
         def __hash__(self):
             return self.hash_code
@@ -245,10 +273,12 @@ class HashTableTests(unittest.TestCase):
         node1 = HashNode(self.FixedHash(0), "test1")
         node2 = HashNode(self.FixedHash(1), "test2")
         node3 = HashNode(self.FixedHash(2), "test3")
-        ht._add(node1)
-        ht._add(node2)
-        ht._add(node3)
+        node4 = HashNode(self.FixedHash(0), "test4")
 
+        self.assertEqual(1, ht._add(node1))
+        self.assertEqual(1, ht._add(node2))
+        self.assertEqual(1, ht._add(node3))
+        self.assertEqual(0, ht._add(node4))
         self.assertEqual(node1, ht._table[0])
         self.assertEqual(node2, ht._table[1])
         self.assertEqual(node3, ht._table[0].next_node)
@@ -282,20 +312,58 @@ class HashTableTests(unittest.TestCase):
         self.assertFalse(ht._is_too_full())
 
     def test_rebuild_table(self):
-        raise NotImplementedError
+        ht = HashTable(3)
+        node1 = HashNode(0, 0)
+        node2 = HashNode(2, 2)
+        node3 = HashNode(3, 3)
+        node4 = HashNode(5, 5)
+        for node in [node1, node2, node3, node4]:
+            ht._add(node)
 
-    def test_set_and_get__int_key(self):
+        self.assertEqual(node1, ht._table[0])
+        self.assertEqual(node2, ht._table[2])
+        self.assertEqual(node3, ht._table[0].next_node)
+        self.assertEqual(node4, ht._table[2].next_node)
+
+        ht._rebuild_table()
+
+        self.assertEqual(6, ht._size)
+        self.assertEqual(node1, ht._table[0])
+        self.assertEqual(node2, ht._table[2])
+        self.assertEqual(node3, ht._table[3])
+        self.assertEqual(node4, ht._table[5])
+
+    def test_set(self):
         ht = HashTable()
-        key = self.fake.random_int()
-        value = _random_value(self.fake)
-        ht.set(key, value)
-        self.assertEqual(value, ht.get(key))
+        key1 = self.fake.random_int()
+        value1 = _random_value(self.fake)
+        ht.set(key1, value1)
+
+        self.assertEqual(value1, ht.get(key1))
+        self.assertEqual(1, ht._number_of_nodes)
+
+        key2 = self.fake.word()
+        value2 = _random_value(self.fake)
+        ht.set(key2, value2)
+
+        self.assertEqual(value2, ht.get(key2))
+        self.assertEqual(2, ht._number_of_nodes)
 
     def test_set__existing_node(self):
-        raise NotImplementedError
+        ht = HashTable()
+        ht.set("foo", "bar")
+
+        self.assertEqual("bar", ht.get("foo"))
+        self.assertEqual(1, ht._number_of_nodes)
+
+        ht.set("foo", "baz")
+
+        self.assertEqual("baz", ht.get("foo"))
+        self.assertEqual(1, ht._number_of_nodes)
 
     def test_set__redo_table_when_full(self):
         raise NotImplementedError
+
 
 if __name__ == '__main__':
     unittest.main()
