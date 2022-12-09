@@ -54,33 +54,65 @@ class HashTable:
             print(f'{key}: {val}')
     """
     _INITIAL_SIZE = 10
+    _MAX_FULLNESS_RATIO = 0.7
 
-    def __init__(self):
-        self._table = [None for i in range(self._INITIAL_SIZE)]
-        self._size = self._INITIAL_SIZE
+    def __init__(self, initial_size: int = _INITIAL_SIZE):
+        self._table = [None for i in range(initial_size)]
+        self._size = initial_size
+        self._number_of_nodes = 0
 
     def __iter__(self):
         pass
 
+    def _add(self, node: 'HashNode'):
+        idx = self._get_table_index(node)
+        if self._table[idx] is None:
+            self._table[idx] = node
+        else:
+            self._table[idx].add(node)
+
     def _get_table_index(self, node: 'HashNode'):
         return abs(node.hash_code) % self._size
+
+    def _is_too_full(self):
+        return (
+            (1.0 * self._number_of_nodes / self._size)
+            >= self._MAX_FULLNESS_RATIO
+        )
+
+    def _rebuild_table(self):
+        new_ht = HashTable(self.size * 2)
+        for node in self:
+            new_ht._add(node)
+        self._table = new_ht._table
 
     def set(self, key: Hashable, value: Any):
         """
         Sets the `key` in the table with the assigned `value`.
         """
         node = HashNode(key, value)
-        idx = self._get_table_index(node)
+
+        # We don't want to increment the number of nodes,
+        # if this node already exists
+        if not self.get(key):
+            self._number_of_nodes += 1
+        self._add(node)
+
+        # Check to see if we might need to allocate more space to the table,
+        # to keep performance close to O(1)
+        if self._is_too_full():
+            self._rebuild_table()
 
     def get(self, key: Hashable, default_value: Any = None) -> Any:
         pass
 
     # TODO: function for removal
+    # Don't forget to decrement self._number_of_nodes
 
 
 def _random_value(fake):
     methods = [method for method in dir(fake)
-               if not method.startswith('_')]
+               if not (method.startswith('_') or method == 'enum')]
     func = getattr(fake, random.choice(methods))
     return func()
 
@@ -139,10 +171,46 @@ class HashTableTests(unittest.TestCase):
     def setUp(self):
         self.fake = Faker()
 
-    def test_init(self):
+    def test_init__default(self):
         ht = HashTable()
         self.assertEqual(HashTable._INITIAL_SIZE, len(ht._table))
         self.assertEqual(HashTable._INITIAL_SIZE, ht._size)
+
+    def test_iter(self):
+        ht = HashTable(3)
+        nodes = [
+            HashNode(self.FixedHash(0), "node1"),
+            HashNode(self.FixedHash(1), "node2"),
+            HashNode(self.FixedHash(2), "node3"),
+            HashNode(self.FixedHash(3), "node4"),
+            HashNode(self.FixedHash(4), "node5"),
+            HashNode(self.FixedHash(6), "node6"),
+        ]
+        for node in nodes:
+            ht._add(node)
+        self.assertEqual(set(nodes), set([node for node in ht]))
+
+    def test_iter__no_items(self):
+        ht = HashTable()
+        self.assertEqual([], [node for node in ht])
+
+    def test_init__set_size(self):
+        ht = HashTable(2)
+        self.assertEqual(2, len(ht._table))
+        self.assertEqual(2, ht._size)
+
+    def test_add(self):
+        ht = HashTable(2)
+        node1 = HashNode(self.FixedHash(0), "test1")
+        node2 = HashNode(self.FixedHash(1), "test2")
+        node3 = HashNode(self.FixedHash(2), "test3")
+        ht._add(node1)
+        ht._add(node2)
+        ht._add(node3)
+
+        self.assertEqual(node1, ht._table[0])
+        self.assertEqual(node2, ht._table[1])
+        self.assertEqual(node3, ht._table[0].next_node)
 
     def test_get_table_index__positive_hash(self):
         ht = HashTable()
@@ -160,6 +228,20 @@ class HashTableTests(unittest.TestCase):
             ht._get_table_index(node),
         )
 
+    def test_is_too_full__true(self):
+        ht = HashTable()
+        ht._size = 10
+        ht._number_of_nodes = 7
+        self.assertTrue(ht._is_too_full())
+
+    def test_is_too_full__false(self):
+        ht = HashTable()
+        ht._size = 10
+        ht._number_of_nodes = 6
+        self.assertFalse(ht._is_too_full())
+
+    def test_rebuild_table(self):
+        raise NotImplementedError
 
     def test_set_and_get__int_key(self):
         ht = HashTable()
@@ -168,6 +250,11 @@ class HashTableTests(unittest.TestCase):
         ht.set(key, value)
         self.assertEqual(value, ht.get(key))
 
+    def test_set__existing_node(self):
+        raise NotImplementedError
+
+    def test_set__redo_table_when_full(self):
+        raise NotImplementedError
 
 if __name__ == '__main__':
     unittest.main()
