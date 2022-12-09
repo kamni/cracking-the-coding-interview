@@ -12,15 +12,42 @@ from typing import Any, Hashable
 __all__ = ['HashTable']
 
 
+class HashNodeIterator:
+    """
+    HashNodes are linked lists; this is an iterator for HashNodes.
+    """
+
+    def __init__(self, head_node: 'HashNode'):
+        self.current_node = head_node
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if not self.current_node:
+            raise StopIteration
+
+        node = self.current_node
+        self.current_node = self.current_node.next_node
+        return node
+
+
 class HashNode:
     """
     Linked list structure for the Hash Table.
     """
+    # Linked lists are used primarily in languages where we don't have
+    # resizeable arrays, unlike python.
+    # We could use a regular python list to handle the nodes,
+    # but this is more fun because it involves more work/learning.
     def __init__(self, key: Hashable, value: Any):
         self.key = key
         self.value = value
         self.hash_code = hash(key)
         self.next_node = None
+
+    def __iter__(self):
+        return HashNodeIterator(self)
 
     def __eq__(self, other: Any):
         # We rely on the key here, rather than the hash,
@@ -62,7 +89,11 @@ class HashTable:
         self._number_of_nodes = 0
 
     def __iter__(self):
-        pass
+        for node in self._table:
+            if not node:
+                continue
+            for subnode in node:
+                yield subnode
 
     def _add(self, node: 'HashNode'):
         idx = self._get_table_index(node)
@@ -140,6 +171,13 @@ class HashNodeTests(unittest.TestCase):
         self.assertEqual(value, node.value)
         self.assertEqual(hash(key), node.hash_code)
 
+    def test_iter(self):
+        node1 = None
+
+    def test_iter__no_other_nodes(self):
+        node1 = HashNode(1, 1)
+        self.assertEqual([node1], [node for node in node1])
+
     def test_eq__false(self):
         node1 = HashNode(self.AlwaysEqualHash(3), "foo")
         node2 = HashNode(self.AlwaysEqualHash(4), "bar")
@@ -188,7 +226,10 @@ class HashTableTests(unittest.TestCase):
         ]
         for node in nodes:
             ht._add(node)
-        self.assertEqual(set(nodes), set([node for node in ht]))
+        self.assertEqual(
+            [nodes[0], nodes[3], nodes[5], nodes[1], nodes[4], nodes[2]],
+            [node for node in ht],
+        )
 
     def test_iter__no_items(self):
         ht = HashTable()
