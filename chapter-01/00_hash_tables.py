@@ -141,28 +141,47 @@ class HashTable:
             self._rebuild_table()
 
     def get(self, key: Hashable, default_value: Any = None) -> Any:
-        hash_code = HashNode.hash_code(key)
-        table_idx = self._get_table_index(hash_code)
+        search_node = HashNode(key, None)
+        table_idx = self._get_table_index(search_node.hash_code)
         start_node = self._table[table_idx]
 
         if start_node:
             for node in start_node:
-                if node.key == key and node.hash_code == hash_code:
+                if search_node == node:
                     return node.value
 
         return default_value
 
     def delete(self, key: Hashable) -> Any:
-        # Return what was deleted
-        # Don't forget to decrement self._number_of_nodes
-        pass
+        search_node = HashNode(key, None)
+        table_idx = self._get_table_index(search_node.hash_code)
+        previous_node = self._table[table_idx]
+
+        if search_node == previous_node:
+            self._table[table_idx] = previous_node.next_node
+            self._number_of_nodes -= 1
+            return previous_node.value
+        elif previous_node:
+            next_node = previous_node.next_node
+            while next_node:
+                if search_node == next_node:
+                    previous_node.next_node = next_node.next_node
+                    self._number_of_nodes -= 1
+                    return next_node.value
+
+        return None
 
 
 def _random_value(fake):
     methods = [method for method in dir(fake)
                if not (method.startswith('_')
-                       or method == 'enum'
-                       or method == 'unique')]
+                       or method in [
+                           'enum',
+                           'format',
+                           'get_formatter',
+                           'provider'
+                           'unique',
+                       ])]
     func = getattr(fake, random.choice(methods))
     return func()
 
@@ -402,6 +421,78 @@ class HashTableTests(unittest.TestCase):
         ht.set("bar", 2)
         self.assertEqual(4, len(ht._table))
         self.assertEqual(4, ht._size)
+
+    def test_delete__empty_table(self):
+        ht = HashTable()
+        self.assertIsNone(ht.delete("foo"))
+
+    def test_delete__doesnt_exist(self):
+        ht = HashTable(3)
+        for fhash in [self.FixedHash(0), self.FixedHash(1), self.FixedHash(2)]:
+            ht.set(fhash, "test")
+        self.assertIsNone(ht.delete(self.FixedHash(3)))
+
+    def test_delete__first_entry_no_next(self):
+        ht = HashTable(10)
+        test_fhash = self.FixedHash(1)
+        ht.set(self.FixedHash(0), "test1")
+        ht.set(test_fhash, "test2")
+        ht.set(self.FixedHash(10), "test3")
+
+        self.assertEqual(3, ht._number_of_nodes)
+        self.assertEqual(test_fhash, ht._table[1].key)
+
+        self.assertEqual("test2", ht.delete(test_fhash))
+        self.assertIsNone(ht.get(test_fhash))
+        self.assertEqual(2, ht._number_of_nodes)
+        self.assertIsNone(ht._table[1])
+
+    def test_delete__first_entry_with_next(self):
+        ht = HashTable(10)
+        test_fhash = self.FixedHash(0)
+        next_fhash = self.FixedHash(10)
+        ht.set(test_fhash, "test1")
+        ht.set(self.FixedHash(1), "test2")
+        ht.set(next_fhash, "test3")
+
+        self.assertEqual(3, ht._number_of_nodes)
+        self.assertEqual(test_fhash, ht._table[0].key)
+
+        self.assertEqual("test1", ht.delete(test_fhash))
+        self.assertIsNone(ht.get(test_fhash))
+        self.assertEqual(2, ht._number_of_nodes)
+        self.assertEqual(next_fhash, ht._table[0].key)
+
+    def test_delete__second_entry_no_next(self):
+        ht = HashTable(10)
+        test_fhash = self.FixedHash(10)
+        ht.set(self.FixedHash(0), "test1")
+        ht.set(self.FixedHash(1), "test2")
+        ht.set(test_fhash, "test3")
+
+        self.assertEqual(3, ht._number_of_nodes)
+        self.assertEqual(test_fhash, ht._table[0].next_node.key)
+
+        self.assertEqual("test3", ht.delete(test_fhash))
+        self.assertIsNone(ht.get(test_fhash))
+        self.assertEqual(2, ht._number_of_nodes)
+        self.assertIsNone(ht._table[0].next_node)
+
+    def test_delete__second_entry_with_next(self):
+        ht = HashTable(10)
+        test_fhash = self.FixedHash(10)
+        next_fhash = self.FixedHash(20)
+        ht.set(self.FixedHash(0), "test1")
+        ht.set(test_fhash, "test2")
+        ht.set(next_fhash, "test3")
+
+        self.assertEqual(3, ht._number_of_nodes)
+        self.assertEqual(test_fhash, ht._table[0].next_node.key)
+
+        self.assertEqual("test2", ht.delete(test_fhash))
+        self.assertIsNone(ht.get(test_fhash))
+        self.assertEqual(2, ht._number_of_nodes)
+        self.assertEqual(next_fhash, ht._table[0].next_node.key)
 
 
 if __name__ == '__main__':
