@@ -141,8 +141,16 @@ class HashTable:
             self._rebuild_table()
 
     def get(self, key: Hashable, default_value: Any = None) -> Any:
-        # Return default value
-        pass
+        hash_code = HashNode.hash_code(key)
+        table_idx = self._get_table_index(hash_code)
+        start_node = self._table[table_idx]
+
+        if start_node:
+            for node in start_node:
+                if node.key == key and node.hash_code == hash_code:
+                    return node.value
+
+        return default_value
 
     def delete(self, key: Hashable) -> Any:
         # Return what was deleted
