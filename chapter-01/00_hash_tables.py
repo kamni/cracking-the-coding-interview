@@ -100,15 +100,15 @@ class HashTable:
                 yield subnode
 
     def _add(self, node: 'HashNode'):
-        idx = self._get_table_index(node)
+        idx = self._get_table_index(node.hash_code)
         if self._table[idx] is None:
             self._table[idx] = node
             return 1
         else:
             return self._table[idx].add(node)
 
-    def _get_table_index(self, node: 'HashNode'):
-        return abs(node.hash_code) % self._size
+    def _get_table_index(self, hash_code: int):
+        return abs(hash_code) % self._size
 
     def _is_too_full(self):
         return (
@@ -285,18 +285,18 @@ class HashTableTests(unittest.TestCase):
 
     def test_get_table_index__positive_hash(self):
         ht = HashTable()
-        node = HashNode(self.FixedHash(13), "node")
+        key = self.FixedHash(13)
         self.assertEqual(
             13 % HashTable._INITIAL_SIZE,
-            ht._get_table_index(node),
+            ht._get_table_index(hash(key)),
         )
 
     def test_get_table_index__negative_hash(self):
         ht = HashTable()
-        node = HashNode(self.FixedHash(-22), "node")
+        key = self.FixedHash(-22)
         self.assertEqual(
             22 % HashTable._INITIAL_SIZE,
-            ht._get_table_index(node),
+            ht._get_table_index(hash(key)),
         )
 
     def test_is_too_full__true(self):
@@ -362,7 +362,14 @@ class HashTableTests(unittest.TestCase):
         self.assertEqual(1, ht._number_of_nodes)
 
     def test_set__redo_table_when_full(self):
-        raise NotImplementedError
+        ht = HashTable(2)
+        self.assertEqual(2, len(ht._table))
+        self.assertEqual(2, ht._size)
+
+        ht.set("foo", 1)
+        ht.set("bar", 2)
+        self.assertEqual(4, len(ht._table))
+        self.assertEqual(4, ht._size)
 
 
 if __name__ == '__main__':
