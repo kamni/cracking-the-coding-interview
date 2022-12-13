@@ -43,7 +43,7 @@ class HashNode:
     def __init__(self, key: Hashable, value: Any):
         self.key = key
         self.value = value
-        self.hash_code = hash(key)
+        self.hash_code = self.hash_code(key)
         self.next_node = None
 
     def __iter__(self):
@@ -68,6 +68,11 @@ class HashNode:
         else:
             self.next_node = next_node
             return 1
+
+    @classmethod
+    def hash_code(cls, key: Hashable) -> int:
+        return hash(key)
+
 
 
 class HashTable:
@@ -136,16 +141,20 @@ class HashTable:
             self._rebuild_table()
 
     def get(self, key: Hashable, default_value: Any = None) -> Any:
+        # Return default value
         pass
 
-    def delete(self, key: Hashable):
+    def delete(self, key: Hashable) -> Any:
+        # Return what was deleted
         # Don't forget to decrement self._number_of_nodes
         pass
 
 
 def _random_value(fake):
     methods = [method for method in dir(fake)
-               if not (method.startswith('_') or method == 'enum')]
+               if not (method.startswith('_')
+                       or method == 'enum'
+                       or method == 'unique')]
     func = getattr(fake, random.choice(methods))
     return func()
 
@@ -221,6 +230,13 @@ class HashNodeTests(unittest.TestCase):
         self.assertEqual(1, node1.add(node3))
         self.assertEqual(0, node1.add(node4))
         self.assertEqual("buz", node3.value)
+
+    def test_hash_code(self):
+        key1 = self.fake.random_int()
+        self.assertEqual(hash(key1), HashNode.hash_code(key1))
+
+        key2 = self.fake.word()
+        self.assertEqual(hash(key2), HashNode.hash_code(key2))
 
 
 class HashTableTests(unittest.TestCase):
@@ -333,7 +349,15 @@ class HashTableTests(unittest.TestCase):
         self.assertEqual(node3, ht._table[3])
         self.assertEqual(node4, ht._table[5])
 
-    def test_set(self):
+    def test_get__non_existing_node(self):
+        ht = HashTable()
+        self.assertIsNone(ht.get("foo"))
+
+    def test_get__non_existing_node_with_default_value(self):
+        ht = HashTable()
+        self.assertEqual("bar", ht.get("foo", "bar"))
+
+    def test_set_and_get(self):
         ht = HashTable()
         key1 = self.fake.random_int()
         value1 = _random_value(self.fake)
