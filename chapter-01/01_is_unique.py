@@ -15,13 +15,15 @@ look like?
 import random
 import string
 import unittest
+from collections import defaultdict
+from typing import Dict, List, Tuple
 
 
-def is_unique_quicksort(string: str):
+def is_unique_quicksort(string: str) -> bool:
     """
-    Mimics the quicksort algorithm to find duplicates.
+    Mimics quicksort algorithm to determine if a string has unique characters.
     """
-    def _sort(string_list, list_start, list_end):
+    def _sort(string_list: List, list_start: int, list_end: int) -> Tuple[int, bool]:
         pivot = string_list[list_end]
         idx = list_start - 1
         for jdx in range(list_start, list_end):
@@ -38,7 +40,7 @@ def is_unique_quicksort(string: str):
         string_list[idx] = pivot
         return (idx, True)
 
-    def _is_unique(string_list, list_start, list_end):
+    def _is_unique(string_list: List, list_start: int, list_end: int) -> bool:
         if not list_start < list_end:
             return True
 
@@ -56,6 +58,16 @@ def is_unique_quicksort(string: str):
     # perhaps we should just use a dict?
     string_list = list(string)
     return _is_unique(list(string), 0, len(string_list) - 1)
+
+
+def is_unique_dict(string: str) -> bool:
+    """
+    Checks if a string has all unique characters using a dict.
+    """
+    char_dict: Dict[str, int] = defaultdict(lambda: 0)
+    for char in string:
+        char_dict[char] += 1
+    return all(map(lambda count: count == 1, char_dict.values()))
 
 
 class IsUniqueQuicksortTests(unittest.TestCase):
@@ -81,6 +93,33 @@ class IsUniqueQuicksortTests(unittest.TestCase):
         test_str = ''.join(test_char_array)
         self.assertFalse(
             is_unique_quicksort(test_str),
+            f'test_char: {test_char}\ntest_str: {test_str}',
+        )
+
+
+class IsUniqueDictTests(unittest.TestCase):
+    def test_empty_string(self):
+        self.assertTrue(is_unique_dict(''))
+
+    def test_single_character(self):
+        test_char = random.choice(string.printable)
+        self.assertTrue(is_unique_dict(test_char), test_char)
+
+    def test_unique(self):
+        self.assertTrue(is_unique_dict(string.printable))
+
+    def test_not_unique(self):
+        test_char = random.choice(string.printable)
+        test_char_array = [random.choice(string.printable)
+                           for i in range(random.randint(10, 20))]
+        for i in range(random.randint(2, 4)):
+            test_char_array.insert(
+                random.randrange(0, len(test_char_array)),
+                test_char,
+            )
+        test_str = ''.join(test_char_array)
+        self.assertFalse(
+            is_unique_dict(test_str),
             f'test_char: {test_char}\ntest_str: {test_str}',
         )
 
