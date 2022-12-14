@@ -74,7 +74,6 @@ class HashNode:
         return hash(key)
 
 
-
 class HashTable:
     """
     Key-value lookup data structure.
